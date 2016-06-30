@@ -211,54 +211,6 @@ class PositiveUnitballFiller : public Filler<Dtype> {
   }
 };
 
-/** @brief Fills a Blob with values @f$ x \in [0, 1] @f$
- *         such that @f$ \forall i \sum_j x_{ij} = 1 @f$.
- *         RNG is only called once, and its output is stored in
- *         PositiveUnitballStaticFillerdata. Followup calls to the Filler function
- *         will bypass RNG.
- */
-template <typename Dtype>
-class PositiveUnitballStaticFiller : public Filler<Dtype> {
- public:
-  explicit PositiveUnitballStaticFiller(const FillerParameter& param)
-      : Filler<Dtype>(param) {
-    positive_unitball_static_filler_flag_ = false;
-  }
-  virtual void Fill(Blob<Dtype>* blob) {
-    Dtype* data = blob->mutable_cpu_data();
-    const int blob_count = blob->count();
-    CHECK(blob_count);
-    if (positive_unitball_static_filler_flag_ == false) {
-      positive_unitball_static_filler_data_.resize(blob_count);
-      caffe_rng_uniform(blob_count, Dtype(0.), Dtype(1.),
-          &positive_unitball_static_filler_data_.front());
-
-      int dim = blob_count / blob->num();
-      CHECK(dim);
-      for (int i = 0; i < blob->num(); ++i) {
-        Dtype sum = 0;
-        for (int j = 0; j < dim; ++j) {
-          sum += positive_unitball_static_filler_data_[i * dim + j];
-        }
-        for (int j = 0; j < dim; ++j) {
-          positive_unitball_static_filler_data_[i * dim + j] /= sum;
-        }
-      }
-      positive_unitball_static_filler_flag_ = true;
-    }
-    CHECK_EQ(this->filler_param_.sparse(), -1)
-         << "Sparsity not supported by this Filler.";
-    caffe_copy(blob_count,
-        &positive_unitball_static_filler_data_.front(), data);
-  }
-
-
- private:
-  std::vector<Dtype> positive_unitball_static_filler_data_;
-  bool positive_unitball_static_filler_flag_;
-};
-
-
 /**
  * @brief Fills a Blob with values @f$ x \sim U(-a, +a) @f$ where @f$ a @f$ is
  *        set inversely proportional to number of incoming nodes, outgoing
@@ -618,8 +570,6 @@ Filler<Dtype>* GetFiller(const FillerParameter& param) {
     return new BilinearFiller<Dtype>(param);
   } else if (type == "gaussianstatic") {
     return new GaussianStaticFiller<Dtype>(param);
-  } else if (type == "positive_unitballstatic") {
-    return new PositiveUnitballStaticFiller<Dtype>(param);
   } else if (type == "uniformstatic") {
     return new UniformStaticFiller<Dtype>(param);
   } else if (type == "xavierstatic") {
